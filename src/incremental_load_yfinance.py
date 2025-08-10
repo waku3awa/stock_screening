@@ -16,6 +16,7 @@ import yfinance as yf
 import pandas as pd
 import os
 import time
+import argparse
 from datetime import datetime, timedelta
 from tqdm import tqdm
 import logging
@@ -442,31 +443,171 @@ class IncrementalYFinanceLoader:
             logger.warning("No batch files found to combine")
 
 
+def parse_arguments():
+    """
+    Parse command line arguments.
+    
+    Returns:
+        argparse.Namespace: Parsed arguments
+    """
+    parser = argparse.ArgumentParser(
+        description="Incremental Stock Data Loader using yfinance API",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  # Basic usage with required arguments
+  python incremental_load_yfinance.py --excel-path ./data/data_j_with_financials.xlsx --output-dir ./stock_data
+  
+  # With custom settings
+  python incremental_load_yfinance.py -e ./data/data_j_with_financials.xlsx -o ./stock_data -i ./existing_data --delay 2.0 --lookback 60
+  
+  # Dry run to estimate update time
+  python incremental_load_yfinance.py -e ./data/data_j_with_financials.xlsx -o ./stock_data --dry-run
+        """
+    )
+    
+    # Required arguments
+    parser.add_argument(
+        '-e', '--excel-path',
+        required=True,
+        type=str,
+        help='Path to Excel file containing ticker list (required)'
+    )
+    
+    parser.add_argument(
+        '-o', '--output-dir',
+        required=True,
+        type=str,
+        help='Directory to save stock data files (required)'
+    )
+    
+    # Optional arguments
+    parser.add_argument(
+        '-i', '--input-dir',
+        type=str,
+        default=None,
+        help='Directory to read existing stock data from (default: same as output-dir)'
+    )
+    
+    parser.add_argument(
+        '--delay',
+        type=float,
+        default=1.0,
+        help='Delay between yfinance requests in seconds (default: 1.0)'
+    )
+    
+    parser.add_argument(
+        '--lookback',
+        type=int,
+        default=30,
+        help='Maximum days to look back for updates (default: 30)'
+    )
+    
+    parser.add_argument(
+        '--batch-size',
+        type=int,
+        default=200,
+        help='Number of files per batch when rebuilding (default: 200)'
+    )
+    
+    parser.add_argument(
+        '--dry-run',
+        action='store_true',
+        help='Perform a dry run to estimate update time without actually downloading data'
+    )
+    
+    parser.add_argument(
+        '--no-rebuild',
+        action='store_true',
+        help='Skip rebuilding batch and master files after updates'
+    )
+    
+    parser.add_argument(
+        '--log-level',
+        choices=['DEBUG', 'INFO', 'WARNING', 'ERROR'],
+        default='INFO',
+        help='Set logging level (default: INFO)'
+    )
+    
+    return parser.parse_args()
+
+
 def main():
     """
     Main function to run incremental updates.
     """
-    # Configuration
-    input_dir = '/home/waku3/claude_ws/stock_data'  # Update this path as needed
-    excel_path = "/home/waku3/claude_ws/data_j.xls"  # Update this path as needed
+    # Parse command line arguments
+    args = parse_arguments()
     
-    # Create loader instance (output_dir will default to input_dir)
-    loader = IncrementalYFinanceLoader(
-        input_dir=input_dir,
-        excel_path=excel_path,
-        rate_limit_delay=1.0  # 1 second delay between requests
-    )
+    # Set logging level
+    logger.setLevel(getattr(logging, args.log_level))
     
-    # Process incremental updates
-    stats = loader.process_incremental_updates(max_lookback_days=30)
+    # Validate paths
+    if not os.path.exists(args.excel_path):
+        logger.error(f"Excel file not found: {args.excel_path}")
+        return 1
     
-    # Rebuild batches and master file if any updates were made
-    if stats['updated_tickers'] > 0 or stats['new_tickers'] > 0:
-        loader.rebuild_batches_and_master()
-    else:
-        logger.info("No updates were made, skipping batch rebuild")
+    # Set input directory (default to output directory if not specified)
+    input_dir = args.input_dir if args.input_dir else args.output_dir
     
-    logger.info("Incremental update process complete!")
+    # Create output directory if it doesn't exist
+    os.makedirs(args.output_dir, exist_ok=True)
+    
+    logger.info(f"Configuration:")
+    logger.info(f"  Excel file: {args.excel_path}")
+    logger.info(f"  Input directory: {input_dir}")
+    logger.info(f"  Output directory: {args.output_dir}")
+    logger.info(f"  Rate limit delay: {args.delay}s")
+    logger.info(f"  Max lookback days: {args.lookback}")
+    logger.info(f"  Batch size: {args.batch_size}")
+    logger.info(f"  Dry run: {args.dry_run}")
+    
+    try:
+        # Create loader instance
+        loader = IncrementalYFinanceLoader(
+            input_dir=input_dir,
+            excel_path=args.excel_path,
+            output_dir=args.output_dir,
+            rate_limit_delay=args.delay
+        )
+        
+        if args.dry_run:
+            # Perform dry run only
+            logger.info("Performing dry run...")
+            loader.dry_run_incremental_update()
+            logger.info("Dry run complete!")
+            return 0
+        
+        # Process incremental updates
+        logger.info("Starting incremental updates...")
+        stats = loader.process_incremental_updates(max_lookback_days=args.lookback)
+        
+        # Rebuild batches and master file if any updates were made and not disabled
+        if not args.no_rebuild and (stats['updated_tickers'] > 0 or stats['new_tickers'] > 0):
+            logger.info("Rebuilding batch and master files...")
+            loader.rebuild_batches_and_master(batch_size=args.batch_size)
+        elif args.no_rebuild:
+            logger.info("Batch rebuild skipped (--no-rebuild flag)")
+        else:
+            logger.info("No updates were made, skipping batch rebuild")
+        
+        logger.info("Incremental update process complete!")
+        
+        # Print final summary
+        logger.info(f"""
+Final Summary:
+- Total tickers: {stats['total_tickers']}
+- Updated: {stats['updated_tickers']}
+- New: {stats['new_tickers']} 
+- Skipped: {stats['skipped_tickers']}
+- Failed: {stats['failed_tickers']}
+        """)
+        
+        return 0
+        
+    except Exception as e:
+        logger.error(f"Error during execution: {e}")
+        return 1
 
 
 def incremental_yf_update(
@@ -505,4 +646,5 @@ def incremental_yf_update(
 
 
 if __name__ == "__main__":
-    main()
+    import sys
+    sys.exit(main())
