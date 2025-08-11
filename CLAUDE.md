@@ -194,16 +194,81 @@ The system implements robust error handling for common issues:
 - Market conditions: Most effective in neutral to slightly bearish markets (score -1 to 0)
 - Time horizon: Medium-term technical analysis (5/25/75-day moving averages)
 
-## Test Data Configuration
+## Environment Management (Test/Production Switching)
+
+The system supports multiple execution environments with automatic configuration switching based on environment settings.
+
+### Available Environments
+
+- **test**: Uses test data (`../test_stock_data`) with sample companies for safe testing
+- **production**: Uses production data (`stock_data/`) with full market data
+- **development**: Uses production data structure but with development-friendly settings
+
+### Environment Switching Methods
+
+#### Method 1: Batch Scripts (Recommended)
+
+**Test Environment Execution:**
+```bash
+# Execute backtest with test data
+scripts\run_backtest_test.bat
+```
+
+**Production Environment Execution:**
+```bash
+# Execute backtest with production data (CAUTION!)
+scripts\run_backtest_prod.bat
+```
+
+#### Method 2: Direct Command Line
+
+**Test Environment:**
+```bash
+echo APP_ENV=test> .env.current && set PYTHONIOENCODING=utf-8 && uv run python src/backtest.py
+```
+
+**Production Environment:**
+```bash
+echo APP_ENV=production> .env.current && set PYTHONIOENCODING=utf-8 && uv run python src/backtest.py
+```
+
+**Development Environment (Default):**
+```bash
+echo APP_ENV=development> .env.current && set PYTHONIOENCODING=utf-8 && uv run python src/backtest.py
+```
+
+### Environment Configuration Files
+
+- **`.env.test`** - Test environment settings (uses test data)
+- **`.env.production`** - Production environment settings (uses full market data)  
+- **`.env.current`** - Current environment selector (auto-generated)
+
+### Environment-Specific Data Sources
+
+| Environment | Master Data File | 1st Screening Results | Data Directory |
+|-------------|------------------|----------------------|----------------|
+| **test** | `test_stock_data/ticker_combined_OHLCV.parquet` | `testing/test_data_selected_companies.xlsx` | `../test_stock_data` |
+| **production** | `stock_data/ticker_combined_OHLCV.parquet` | `data_j.xls` | `stock_data` |
+| **development** | `stock_data/ticker_combined_OHLCV.parquet` | `data_j.xls` | `stock_data` |
+
+### Safety Features
+
+- **Environment Display**: Execution starts by showing current environment and data source
+- **Automatic Path Resolution**: Environment-specific file paths are automatically resolved
+- **Configuration Validation**: Missing environment files trigger appropriate warnings
+- **Gitignore Protection**: All environment configuration files are excluded from version control
+
+### Test Data Configuration
 
 **Test Data Directory**: `../test_stock_data`
 
-The system now uses a dedicated test data directory for development and testing purposes. This directory contains sample stock data files for testing screening strategies and validating functionality without impacting production data.
+The system uses a dedicated test data directory containing 33 sample companies for safe testing and development. This allows validation of screening strategies without risk to production data or analysis.
 
-**Important Notes:**
-- Test data follows the same parquet file structure as production data
-- Use `pathlib` and configuration-based path management for robust file handling
-- Test data directory should be referenced through `config.py` to avoid hard-coded relative paths
+**Test Data Features:**
+- Complete OHLCV data structure matching production format
+- Representative sample of Japanese stocks from various sectors
+- Safe for experimentation and strategy development
+- Isolated from production data pipeline
 
 ## Extension Points
 

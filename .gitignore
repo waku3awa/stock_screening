@@ -1,8 +1,11 @@
 .venv
 test_stock_data
 src/__pycache__
+backtest_results
 
 # 環境変数ファイル (機密情報を含むため)
 .env
 .env.local
 .env.production
+.env.test
+.env.current

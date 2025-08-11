@@ -17,9 +17,26 @@ PROJECT_ROOT = Path(__file__).parent.parent
 CONFIG_FILE = PROJECT_ROOT / "config.yaml"
 ENV_FILE = PROJECT_ROOT / ".env"
 
-# .envファイルから環境変数を読み込み
+# 環境に応じた.envファイルを読み込み
+# 1. 基本の.envファイルを読み込み
 if ENV_FILE.exists():
     load_dotenv(ENV_FILE)
+
+# 2. 現在の環境設定ファイル（.env.current）があれば読み込み
+env_current_file = PROJECT_ROOT / ".env.current"
+if env_current_file.exists():
+    load_dotenv(env_current_file, override=True)
+
+# 3. 環境変数APP_ENVを確認
+env_name = os.getenv("APP_ENV", "development")
+
+# 4. 環境専用の.envファイルがあれば読み込み（上書き）
+env_specific_file = PROJECT_ROOT / f".env.{env_name}"
+if env_specific_file.exists():
+    load_dotenv(env_specific_file, override=True)
+    print(f"[CONFIG] 環境別設定ファイル読み込み: {env_specific_file.name}")
+else:
+    print(f"[WARNING] 環境別設定ファイルが見つかりません: .env.{env_name}")
 
 
 class ConfigError(Exception):
@@ -70,6 +87,10 @@ if not TEST_DATA_DIR.is_absolute():
 EXCEL_PATH = PROJECT_ROOT / _config.get("data_source", {}).get("excel_file", "data_j.xls")
 MASTER_FILE = DATA_DIR / "ticker_combined_OHLCV.parquet"
 LOG_FILE = PROJECT_ROOT / "incremental_update.log"
+
+# テスト用ファイルパス
+TEST_MASTER_FILE = TEST_DATA_DIR / "ticker_combined_OHLCV.parquet"
+TEST_SCREENING_RESULT_FILE = PROJECT_ROOT / "testing" / "test_data_selected_companies.xlsx"
 
 # ディレクトリの自動作成
 DATA_DIR.mkdir(parents=True, exist_ok=True)
@@ -132,9 +153,31 @@ CURRENCY = MARKET_CONFIG.get("currency", "JPY")
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 
-# === 開発・デバッグ設定 ===
+# === 環境設定 (テスト/本番切り替え) ===
 
-DEVELOPMENT_MODE = os.getenv("DEVELOPMENT_MODE", "false").lower() == "true"
+# 環境の判定 (production, development, test)
+APP_ENV = os.getenv("APP_ENV", "development")
+DEVELOPMENT_MODE = APP_ENV == "development"
+PRODUCTION_MODE = APP_ENV == "production"
+TEST_MODE = APP_ENV == "test"
+
+def get_data_source_config():
+    """環境に応じたデータソース設定を取得"""
+    if TEST_MODE:
+        return {
+            "master_file": TEST_MASTER_FILE,
+            "screening_result_file": TEST_SCREENING_RESULT_FILE,
+            "data_dir": TEST_DATA_DIR,
+        }
+    else:  # production または development
+        return {
+            "master_file": MASTER_FILE,
+            "screening_result_file": EXCEL_PATH,
+            "data_dir": DATA_DIR,
+        }
+
+# 環境別データソース設定
+DATA_SOURCE_CONFIG = get_data_source_config()
 
 # === ログ設定辞書 (既存コードとの互換性維持) ===
 
@@ -174,13 +217,15 @@ def get_config_summary() -> str:
     """設定の概要を文字列で返す（デバッグ用）"""
     summary = f"""
 === 株価スクリーニングシステム設定概要 ===
+実行環境: {APP_ENV.upper()} 
 プロジェクトルート: {PROJECT_ROOT}
-データディレクトリ: {DATA_DIR}
-テストデータディレクトリ: {TEST_DATA_DIR}
+データディレクトリ: {DATA_SOURCE_CONFIG['data_dir']}
+使用マスターファイル: {DATA_SOURCE_CONFIG['master_file']}
+1stスクリーニング結果: {DATA_SOURCE_CONFIG['screening_result_file']}
 レート制限: {RATE_LIMIT_DELAY}秒
 バッチサイズ: {BATCH_SIZE}
 初期投資額: {INITIAL_CAPITAL:,}円
-開発モード: {DEVELOPMENT_MODE}
+開発モード: {DEVELOPMENT_MODE} | 本番モード: {PRODUCTION_MODE} | テストモード: {TEST_MODE}
     """.strip()
     return summary
 

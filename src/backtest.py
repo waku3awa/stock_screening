@@ -11,19 +11,28 @@ Original file is located at
 # 2nd screening V3
 # -----------------------------
 import time
+import sys
+import io
+
+# 標準出力をUTF-8で設定（日本語対応）
+if sys.stdout.encoding != 'utf-8':
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 
 global_start_time = time.time()
-
-from google.colab import drive
-drive.mount('/content/drive')
 
 import pandas as pd
 import numpy as np
 import os
-from tqdm.notebook import tqdm
+from tqdm import tqdm
 import yfinance as yf
-from curl_cffi import requests
-session = requests.Session(impersonate="safari15_5")
+
+# curl_cffiが利用可能な場合のみセッション設定
+try:
+    from curl_cffi import requests
+    session = requests.Session(impersonate="safari15_5")
+except ImportError:
+    print("curl_cffiが利用できません。標準のyfinanceセッションを使用します。")
+    session = None
 
 # --------------------------------------------------
 # ヘルパー関数定義セクション
@@ -109,13 +118,20 @@ def calculate_technical_indicators(df_group):
 
 # --- パス設定 ---
 # 1stスクリーニング結果読み込みに使う
-input_csv_path = "/content/drive/MyDrive/stock_prediction/ver.1/results/1st/data_j_with_financials.xlsx"
-output_base_dir = "/content/drive/MyDrive/stock_prediction/ver.1/results/2nd"
-os.makedirs(output_base_dir, exist_ok=True)
-
 # --- データソース設定 ---
-from .config import MASTER_FILE
-PARQUET_PATH_FOR_PREDICTION = str(MASTER_FILE)
+import sys
+from pathlib import Path
+sys.path.append(str(Path(__file__).parent))
+from config import DATA_SOURCE_CONFIG, PROJECT_ROOT, APP_ENV
+
+# 環境に応じた設定
+PARQUET_PATH_FOR_PREDICTION = str(DATA_SOURCE_CONFIG['master_file'])
+input_csv_path = str(DATA_SOURCE_CONFIG['screening_result_file'])
+
+print(f"[BACKTEST] 実行環境: {APP_ENV.upper()}")
+print(f"[DATA] 使用データ: {DATA_SOURCE_CONFIG['master_file'].name}")
+output_base_dir = str(PROJECT_ROOT / "backtest_results")
+os.makedirs(output_base_dir, exist_ok=True)
 MARKET_INDEX_TICKER = '1306.T'  # 地合い計算に使う。(NEXT FUNDS)TOPIX連動型上場投信など
 
 # --- 日付リスト ---
@@ -155,7 +171,7 @@ global_data_load_start_time = time.time()
 # 分析期間を決定
 earliest_screening_date = pd.Timestamp(date_list[0])
 latest_screening_date = pd.Timestamp(date_list[-1])
-from .config import MAX_LOOKBACK_DAYS
+from config import MAX_LOOKBACK_DAYS
 max_lookback_days = MAX_LOOKBACK_DAYS
 max_lookahead_days = 90
 global_data_start_date = earliest_screening_date - pd.Timedelta(days=max_lookback_days)
@@ -225,14 +241,16 @@ for today_str in tqdm(date_list, desc="全体進捗 (日付別)"):
     today = pd.Timestamp(today_str)
 
     # 1stスクリーニング結果を読む
+    if not input_csv_path:
+        raise FileNotFoundError("1stスクリーニング結果ファイルが指定されていません。data_j.xlsファイルを配置してください。")
+    
     try:
         if input_csv_path.split(".")[-1] == "csv":
-          df_list = pd.read_csv(input_csv_path)
+            df_list = pd.read_csv(input_csv_path)
         else:
-          df_list = pd.read_excel(input_csv_path)
+            df_list = pd.read_excel(input_csv_path)
     except FileNotFoundError:
-        print(f"Exception: 1stスクリーニング結果ファイルが見つかりません: {input_csv_path}")
-        continue
+        raise FileNotFoundError(f"1stスクリーニング結果ファイルが見つかりません: {input_csv_path}")
 
     # 出力先を作成
     output_dir = os.path.join(output_base_dir, f'2nd_16pts_slope5_{today_str}')
