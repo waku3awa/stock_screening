@@ -489,24 +489,26 @@ Examples:
         help='Directory to read existing stock data from (default: same as output-dir)'
     )
     
+    from .config import RATE_LIMIT_DELAY, MAX_LOOKBACK_DAYS, BATCH_SIZE, EXCEL_PATH
+
     parser.add_argument(
         '--delay',
         type=float,
-        default=1.0,
+        default=RATE_LIMIT_DELAY,
         help='Delay between yfinance requests in seconds (default: 1.0)'
     )
     
     parser.add_argument(
         '--lookback',
         type=int,
-        default=30,
+        default=MAX_LOOKBACK_DAYS,
         help='Maximum days to look back for updates (default: 30)'
     )
     
     parser.add_argument(
         '--batch-size',
         type=int,
-        default=200,
+        default=BATCH_SIZE,
         help='Number of files per batch when rebuilding (default: 200)'
     )
     

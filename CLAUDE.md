@@ -11,7 +11,7 @@ This is a **Stock Screening System** focused on Japanese stock market (東証プ
 The project follows a modular architecture with clear separation of concerns:
 
 ```
-├── src/                    # Production code
+├── src/                   # Production code
 │   ├── backtest.py        # Backtesting engine for screening strategies
 │   ├── incremental_load_yfinance.py  # Advanced incremental data loader
 │   └── parquet_utils.py   # Parquet file operations and validation
@@ -19,7 +19,8 @@ The project follows a modular architecture with clear separation of concerns:
 │   ├── config.py          # Configuration management
 │   ├── load_yfinance.py   # Basic data loading with incremental features
 │   └── quick_start_example.py  # Usage examples
-└── *.md files             # Comprehensive documentation
+└── doc                    # Comprehensive documentation
+    └── *.md files
 ```
 
 ## Key Technologies & Dependencies
@@ -72,35 +73,68 @@ The project follows a modular architecture with clear separation of concerns:
 - Rate limiting settings (`RATE_LIMIT_DELAY = 1.0` seconds)
 - Processing parameters (`BATCH_SIZE = 200`, `MAX_LOOKBACK_DAYS = 30`)
 
+## Development Environment
+
+**Python Environment Management:**
+This project uses `uv` for Python environment and dependency management.
+
+```bash
+# Install dependencies and create virtual environment
+uv add pyyaml python-dotenv
+
+# Run Python scripts with uv
+uv run python src/config.py
+
+# Add new dependencies
+uv add <package-name>
+```
+
+**Japanese Character Encoding:**
+To prevent character encoding issues with Japanese text on Windows:
+
+```bash
+# Set UTF-8 encoding for Python output
+set PYTHONIOENCODING=utf-8 && uv run python <script.py>
+
+# Or use PowerShell
+$env:PYTHONIOENCODING="utf-8"; uv run python <script.py>
+```
+
 ## Common Development Commands
 
-**Note:** This project doesn't have traditional build/test infrastructure. Most operations are run directly through Python scripts.
+**Note:** This project doesn't have traditional build/test infrastructure. Most operations are run directly through Python scripts using `uv`.
 
 ### Data Operations
-```python
+```bash
 # Basic incremental update (simple approach)
-python src_poc/load_yfinance.py
+uv run python src_poc/load_yfinance.py
 
 # Advanced incremental update with detailed logging
-python src/incremental_load_yfinance.py
+set PYTHONIOENCODING=utf-8 && uv run python src/incremental_load_yfinance.py
 
 # Quick start example with step-by-step guidance
-python src_poc/quick_start_example.py
+uv run python src_poc/quick_start_example.py
+
+# Test configuration system
+set PYTHONIOENCODING=utf-8 && uv run python src/config.py
 ```
 
 ### Validation and Utilities
 ```python
-# Validate parquet files and check data quality
+# Validate parquet files and check data quality (in Python)
 from src.parquet_utils import validate_parquet_data, scan_all_parquet_files
 
 # Check update priorities for existing data
 from src.parquet_utils import calculate_update_priority
+
+# Access configuration settings
+from src.config import TEST_DATA_DIR, RATE_LIMIT_DELAY, RSI_PERIOD
 ```
 
 ### Backtesting
-```python
+```bash
 # Run full backtesting analysis
-python src/backtest.py
+set PYTHONIOENCODING=utf-8 && uv run python src/backtest.py
 ```
 
 ## Important File Patterns
@@ -159,6 +193,17 @@ The system implements robust error handling for common issues:
 - Targets: Monthly returns of 3-5%
 - Market conditions: Most effective in neutral to slightly bearish markets (score -1 to 0)
 - Time horizon: Medium-term technical analysis (5/25/75-day moving averages)
+
+## Test Data Configuration
+
+**Test Data Directory**: `../test_stock_data`
+
+The system now uses a dedicated test data directory for development and testing purposes. This directory contains sample stock data files for testing screening strategies and validating functionality without impacting production data.
+
+**Important Notes:**
+- Test data follows the same parquet file structure as production data
+- Use `pathlib` and configuration-based path management for robust file handling
+- Test data directory should be referenced through `config.py` to avoid hard-coded relative paths
 
 ## Extension Points
 

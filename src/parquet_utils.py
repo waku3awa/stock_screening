@@ -133,7 +133,8 @@ def validate_parquet_data(file_path: str) -> Dict[str, any]:
             return result
         
         # Check for required columns
-        required_columns = ['Date', 'Open', 'High', 'Low', 'Close', 'Volume', 'Ticker']
+        from .config import REQUIRED_COLUMNS
+        required_columns = REQUIRED_COLUMNS
         missing_columns = [col for col in required_columns if col not in df.columns]
         if missing_columns:
             result['data_quality_issues'].append(f"Missing required columns: {missing_columns}")

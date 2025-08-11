@@ -114,7 +114,8 @@ output_base_dir = "/content/drive/MyDrive/stock_prediction/ver.1/results/2nd"
 os.makedirs(output_base_dir, exist_ok=True)
 
 # --- データソース設定 ---
-PARQUET_PATH_FOR_PREDICTION = "/content/drive/MyDrive/stock_prediction/ver.1/results/2025-06-27/ticker_combined_OHLCV.parquet"
+from .config import MASTER_FILE
+PARQUET_PATH_FOR_PREDICTION = str(MASTER_FILE)
 MARKET_INDEX_TICKER = '1306.T'  # 地合い計算に使う。(NEXT FUNDS)TOPIX連動型上場投信など
 
 # --- 日付リスト ---
@@ -154,7 +155,8 @@ global_data_load_start_time = time.time()
 # 分析期間を決定
 earliest_screening_date = pd.Timestamp(date_list[0])
 latest_screening_date = pd.Timestamp(date_list[-1])
-max_lookback_days = 250
+from .config import MAX_LOOKBACK_DAYS
+max_lookback_days = MAX_LOOKBACK_DAYS
 max_lookahead_days = 90
 global_data_start_date = earliest_screening_date - pd.Timedelta(days=max_lookback_days)
 global_data_end_date = latest_screening_date + pd.Timedelta(days=max_lookahead_days)
