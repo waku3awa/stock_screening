@@ -341,6 +341,70 @@ def scan_all_parquet_files(directory: str) -> Dict[str, Dict]:
     return summary
 
 
+def get_last_business_day(date: Optional[str] = None) -> str:
+    """
+    Get the last business day (Monday-Friday) on or before the specified date.
+    
+    This function is crucial for stock market data processing as markets are closed
+    on weekends and some holidays. It ensures we always request data for a day
+    when markets were potentially open.
+    
+    Args:
+        date: Date string in 'YYYY-MM-DD' format. If None, uses today's date.
+        
+    Returns:
+        String representing the last business day in 'YYYY-MM-DD' format
+        
+    Example:
+        >>> # If today is Sunday 2024-01-07
+        >>> get_last_business_day()
+        '2024-01-05'  # Returns Friday
+        
+        >>> # If today is Wednesday 2024-01-03  
+        >>> get_last_business_day()
+        '2024-01-03'  # Returns same day (Wednesday)
+    """
+    if date is None:
+        target_date = datetime.now()
+    else:
+        target_date = datetime.strptime(date, '%Y-%m-%d')
+    
+    # Find the last business day (Monday=0, Sunday=6)
+    while target_date.weekday() > 4:  # Saturday=5, Sunday=6
+        target_date -= timedelta(days=1)
+    
+    return target_date.strftime('%Y-%m-%d')
+
+
+def adjust_date_range_for_market(start_date: str, end_date: str) -> Tuple[str, str]:
+    """
+    Adjust date range to ensure both dates fall on potential trading days.
+    
+    This function adjusts both start and end dates to business days to avoid
+    requesting data for weekends when markets are closed.
+    
+    Args:
+        start_date: Start date in 'YYYY-MM-DD' format
+        end_date: End date in 'YYYY-MM-DD' format
+        
+    Returns:
+        Tuple of (adjusted_start_date, adjusted_end_date) in 'YYYY-MM-DD' format
+        
+    Example:
+        >>> adjust_date_range_for_market('2024-01-06', '2024-01-07')  # Sat-Sun
+        ('2024-01-05', '2024-01-05')  # Both adjusted to Friday
+    """
+    # Adjust end date to last business day
+    adjusted_end = get_last_business_day(end_date)
+    
+    # For start date, if it's a weekend, move to next business day
+    start_dt = datetime.strptime(start_date, '%Y-%m-%d')
+    while start_dt.weekday() > 4:  # Saturday=5, Sunday=6
+        start_dt += timedelta(days=1)
+    adjusted_start = start_dt.strftime('%Y-%m-%d')
+    
+    return adjusted_start, adjusted_end
+
 def get_ticker_data(
     tickers: Union[str, List[str]],
     directory: str,
@@ -386,9 +450,13 @@ def get_ticker_data(
 
     # Set default dates if not provided
     if end_date is None:
-        end_date = datetime.now().strftime('%Y-%m-%d')
+        end_date = get_last_business_day()  # Use last business day instead of today
     if start_date is None:
         start_date = '2010-01-01'  # Default historical start
+    
+    # Adjust date range for market hours to avoid weekend/holiday issues
+    start_date, end_date = adjust_date_range_for_market(start_date, end_date)
+    logger.info(f"Adjusted date range for market hours: {start_date} to {end_date}")
 
     # Convert dates to datetime objects for comparison
     start_dt = pd.to_datetime(start_date)
@@ -603,7 +671,7 @@ def get_recent_ticker_data(
         >>> # Get last 30 days for multiple tickers
         >>> df = get_recent_ticker_data(['7203.T', '6758.T'], './stock_data/raw', days=30)
     """
-    end_date = datetime.now().strftime('%Y-%m-%d')
+    end_date = get_last_business_day()  # Use last business day instead of today
     start_date = (datetime.now() - timedelta(days=days)).strftime('%Y-%m-%d')
 
     return get_ticker_data(

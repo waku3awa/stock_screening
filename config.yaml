@@ -4,7 +4,7 @@
 data_source:
   # 基本データファイル
   excel_file: "data_j.xls"
-  
+
   # レート制限設定 (yfinance API)
   rate_limit_delay: 1.0  # seconds between requests
   max_lookback_days: 30  # maximum days to look back for updates
@@ -15,7 +15,7 @@ backtest:
   # デフォルトの日付範囲
   default_start_date: "2010-01-01"
   # end_dateは動的に現在日付を使用
-  
+
   # 初期投資額 (円)
   initial_capital: 1000000
 
@@ -26,7 +26,7 @@ screening:
     min_roe: 0.10        # ROE > 10%
     max_per: 15          # PER < 15
     min_operating_margin: 0.10  # 営業利益率 > 10%
-  
+
   # テクニカル分析パラメータ
   technical:
     # RSI設定
@@ -34,7 +34,7 @@ screening:
     rsi_range:
       min: 25
       max: 75
-    
+
     # 移動平均設定
     moving_averages: [5, 25, 75]
     # 移動平均の許容範囲 (±8%)
@@ -45,26 +45,39 @@ files:
   # 必須カラム定義
   required_columns:
     - "Date"
-    - "Open" 
+    - "Open"
     - "High"
     - "Low"
     - "Close"
     - "Volume"
     - "Ticker"
-  
+
   # ログ設定
   log_level: "INFO"
   log_format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+
+# インジケーター設定
+indicators:
+  # バーゲンハンターインジケーター
+  bargain_hunter:
+    # 移動平均期間
+    ma_period: 200
+    # 下落率閾値 (%)
+    drop_percentage: 3.0
+    # 上昇率閾値 (%)
+    rise_percentage: 5.0
+    # 並列処理設定
+    n_jobs: -1  # -1 = 全CPUコア使用
 
 # 市場固有設定 (東証)
 market:
   # 東証の取引時間 (JST)
   trading_hours:
     start: "09:00"
-    end: "15:00"
-  
+    end: "15:30"
+
   # ティッカーフォーマット
   ticker_suffix: ".T"  # 例: "7203.T" for Toyota
-  
+
   # 通貨
   currency: "JPY"

@@ -2,6 +2,9 @@
 test_stock_data
 src/__pycache__
 backtest_results
+.serena/cache/*
+screening_results*
+*__pycache__
 
 # 環境変数ファイル (機密情報を含むため)
 .env

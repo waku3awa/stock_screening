@@ -13,32 +13,41 @@ The project follows a modular architecture with clear separation of concerns:
 ```
 ├── src/                   # Production code
 │   ├── backtest.py        # Backtesting engine for screening strategies
-│   ├── incremental_load_yfinance.py  # Advanced incremental data loader
-│   └── parquet_utils.py   # Parquet file operations and validation
-├── src_poc/               # Proof of concept and simpler implementations
 │   ├── config.py          # Configuration management
+│   ├── incremental_load_yfinance.py  # Advanced incremental data loader
+│   ├── parquet_utils.py   # Parquet file operations and validation
+│   ├── stock_screener.py  # Core screening logic implementation
+│   └── indicators/        # Technical indicator framework
+│       ├── base.py        # Base indicator class
+│       ├── bargain_hunter.py  # Bargain hunter strategy
+│       └── __init__.py
+├── src_poc/               # Proof of concept and simpler implementations
+│   ├── config.py          # Legacy configuration (use src/config.py)
 │   ├── load_yfinance.py   # Basic data loading with incremental features
 │   └── quick_start_example.py  # Usage examples
-└── doc                    # Comprehensive documentation
+├── scripts/               # Windows batch scripts for environment management
+│   ├── run_backtest_test.bat   # Execute backtest in test environment
+│   ├── run_backtest_prod.bat   # Execute backtest in production environment
+│   └── set_env_*.bat      # Environment configuration scripts
+└── doc/                   # Comprehensive documentation
     └── *.md files
 ```
 
 ## Key Technologies & Dependencies
 
-**Core Dependencies:**
-- `pandas` - Data manipulation and analysis
-- `yfinance` - Yahoo Finance API for stock data
-- `numpy` - Numerical computing for technical indicators
-- `tqdm` - Progress bars for long-running operations
-- `pyarrow` - Parquet file format support
+**Core Dependencies (from pyproject.toml):**
+- `pandas>=2.3.1` - Data manipulation and analysis
+- `yfinance>=0.2.65` - Yahoo Finance API for stock data
+- `numpy>=2.3.2` - Numerical computing for technical indicators
+- `pyarrow>=21.0.0` - Parquet file format support
+- `tqdm>=4.67.1` - Progress bars for long-running operations
+- `python-dotenv>=1.1.1` - Environment variable management
+- `pyyaml>=6.0.2` - YAML configuration file support
+- `openpyxl>=3.1.5` - Excel file operations
 
-**Optional Dependencies:**
-- `curl_cffi` - Enhanced HTTP requests (for rate limiting bypass)
-- `matplotlib` - Data visualization for backtesting
-
-**Google Colab Specific:**
-- Some scripts include `google.colab` imports for cloud execution
-- `tqdm.notebook` for Jupyter notebook progress bars
+**Development Requirements:**
+- Python 3.13+ (specified in pyproject.toml)
+- `uv` package manager for dependency management
 
 ## Core System Components
 
@@ -64,14 +73,28 @@ The project follows a modular architecture with clear separation of concerns:
 - **Market Score**: 3-dimensional market sentiment analysis (Momentum, Position, Psychology)
 
 ### 3. Configuration System
-**Files:** `config.py`
+**Files:** `src/config.py`, `config.yaml`
 
-**Purpose:** Centralized configuration management for data paths, API settings, and processing parameters.
+**Purpose:** Centralized configuration management with environment-specific settings and YAML-based configuration.
 
 **Key Configuration Areas:**
-- Data directory structure (`RAW_DATA_DIR`, `BATCH_DATA_DIR`)
+- Environment-based configuration (test/development/production)
+- Data directory structure and file paths
 - Rate limiting settings (`RATE_LIMIT_DELAY = 1.0` seconds)
 - Processing parameters (`BATCH_SIZE = 200`, `MAX_LOOKBACK_DAYS = 30`)
+- Screening strategy parameters (financial filters, technical analysis)
+- Market-specific settings (ticker format, trading hours)
+
+### 4. Technical Indicator Framework
+**Files:** `src/indicators/`
+
+**Purpose:** Modular framework for implementing and managing technical analysis indicators.
+
+**Key Features:**
+- Base indicator class for consistent implementation patterns
+- Parallel processing support for batch calculations
+- Configurable parameters via YAML configuration
+- Extensible architecture for new indicator strategies
 
 ## Development Environment
 
@@ -102,7 +125,23 @@ $env:PYTHONIOENCODING="utf-8"; uv run python <script.py>
 
 ## Common Development Commands
 
-**Note:** This project doesn't have traditional build/test infrastructure. Most operations are run directly through Python scripts using `uv`.
+**Note:** This project uses Windows batch scripts for common operations and `uv` for Python environment management.
+
+### Quick Reference (Most Common Commands)
+
+```bash
+# Test environment backtest (RECOMMENDED for development)
+scripts\run_backtest_test.bat
+
+# Production environment backtest (CAUTION!)
+scripts\run_backtest_prod.bat
+
+# Incremental data update
+set PYTHONIOENCODING=utf-8 && uv run python src/incremental_load_yfinance.py
+
+# Add new dependencies
+uv add <package-name>
+```
 
 ### Data Operations
 ```bash
@@ -151,11 +190,26 @@ All parquet files follow standardized column structure:
 - `Volume` - Trading volume
 - `Ticker` - Stock symbol (e.g., "7203.T" for Tokyo Stock Exchange)
 
-### Configuration Switching
-The incremental update mode can be toggled in `load_yfinance.py`:
-```python
-INCREMENTAL_UPDATE = True   # Incremental mode (recommended for daily updates)
-INCREMENTAL_UPDATE = False  # Full download mode (initial setup)
+### Configuration Structure
+Configuration is managed through YAML files and environment variables:
+```yaml
+# config.yaml - Main configuration file
+data_source:
+  rate_limit_delay: 1.0
+  batch_size: 200
+
+screening:
+  financial:
+    min_roe: 0.10
+    max_per: 15
+  technical:
+    rsi_period: 14
+    moving_averages: [5, 25, 75]
+
+indicators:
+  bargain_hunter:
+    ma_period: 200
+    n_jobs: -1  # Use all CPU cores
 ```
 
 ## Development Workflow
