@@ -19,7 +19,7 @@ warnings.filterwarnings('ignore')
 # プロジェクトルートをパスに追加
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from src.parquet_utils import get_ticker_data, get_last_business_day
+from utils_parquet import get_ticker_data, get_last_business_day
 from src.indicators import BargainHunterIndicator
 from src.indicators.base import IndicatorResult, Signal
 
@@ -171,9 +171,38 @@ class StockScreener:
         Args:
             results: スクリーニング結果
         """
+        import unicodedata
+
+        def get_display_width(text: str) -> int:
+            """文字列の表示幅を計算（東アジア文字考慮）"""
+            width = 0
+            for char in text:
+                if unicodedata.east_asian_width(char) in ('F', 'W'):
+                    width += 2  # 全角文字
+                else:
+                    width += 1  # 半角文字
+            return width
+
+        def pad_string(text: str, width: int) -> str:
+            """文字列を指定幅にパディング（東アジア文字考慮）"""
+            current_width = get_display_width(text)
+            if current_width >= width:
+                return text
+            padding = width - current_width
+            return text + ' ' * padding
+
         # シグナル別に分類
         buy_signals = [r for r in results if r.signal == Signal.BUY]
         sell_signals = [r for r in results if r.signal == Signal.SELL]
+
+        # 銘柄名の最大表示幅を計算（買いシグナルと売りシグナル両方から）
+        all_signals = buy_signals + sell_signals
+        if all_signals:
+            max_company_name_width = max(get_display_width(r.company_name) for r in all_signals)
+            # 最小幅は10文字、最大幅は40文字に制限
+            company_name_width = max(10, min(max_company_name_width, 40))
+        else:
+            company_name_width = 20  # デフォルト値
 
         print("\n" + "="*80)
         print("スクリーニング結果")
@@ -183,11 +212,13 @@ class StockScreener:
         if buy_signals:
             print("\n【買いシグナル】")
             print("-"*80)
-            print(f"{'ティッカー':<10} {'銘柄名':<20} {'現在価格':>10} {'100株価格':>12} {'MA比率':>8} {'2日変動':>8}")
+            header_company_name = pad_string("銘柄名", company_name_width)
+            print(f"{'ティッカー':<5} {header_company_name} {'現在価格':>6} {'100株価格':>9} {'MA比率':>7} {'2日変動':>7}")
             print("-"*80)
             for result in buy_signals:
                 info = result.additional_info
-                print(f"{result.ticker:<10} {result.company_name:<20} "
+                padded_company_name = pad_string(result.company_name, company_name_width)
+                print(f"{result.ticker:<10} {padded_company_name} "
                       f"{result.current_price:>10,.0f} {result.lot_price:>12,.0f} "
                       f"{info['price_vs_ma']:>7.1f}% {info['change_2_days']:>7.1f}%")
         else:
@@ -197,11 +228,13 @@ class StockScreener:
         if sell_signals:
             print("\n【売りシグナル】")
             print("-"*80)
-            print(f"{'ティッカー':<10} {'銘柄名':<20} {'現在価格':>10} {'100株価格':>12} {'MA比率':>8} {'2日変動':>8}")
+            header_company_name = pad_string("銘柄名", company_name_width)
+            print(f"{'ティッカー':<5} {header_company_name} {'現在価格':>6} {'100株価格':>9} {'MA比率':>7} {'2日変動':>7}")
             print("-"*80)
             for result in sell_signals:
                 info = result.additional_info
-                print(f"{result.ticker:<10} {result.company_name:<20} "
+                padded_company_name = pad_string(result.company_name, company_name_width)
+                print(f"{result.ticker:<10} {padded_company_name} "
                       f"{result.current_price:>10,.0f} {result.lot_price:>12,.0f} "
                       f"{info['price_vs_ma']:>7.1f}% {info['change_2_days']:>7.1f}%")
         else:

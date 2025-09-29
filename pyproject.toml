@@ -12,5 +12,6 @@ dependencies = [
     "python-dotenv>=1.1.1",
     "pyyaml>=6.0.2",
     "tqdm>=4.67.1",
-    "yfinance>=0.2.65",
+    "xlrd>=2.0.2",
+    "yfinance-cache>=0.7.13",
 ]

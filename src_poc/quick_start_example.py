@@ -10,8 +10,8 @@ import logging
 import os
 from datetime import datetime, timedelta
 from incremental_load_yfinance import IncrementalYFinanceLoader
-from parquet_utils import (
-    get_latest_date_from_parquet, 
+from utils_parquet import (
+    get_latest_date_from_parquet,
     validate_parquet_data,
     scan_all_parquet_files,
     calculate_update_priority
@@ -30,34 +30,34 @@ def example_1_check_existing_files():
     print("\n" + "="*60)
     print("EXAMPLE 1: Check existing parquet files")
     print("="*60)
-    
+
     # Scan all files in the raw data directory
     summary = scan_all_parquet_files(config.RAW_DATA_DIR)
-    
+
     if not summary:
         print("No parquet files found in the raw data directory.")
         return
-    
+
     print(f"Found {len(summary)} parquet files:")
-    
+
     # Show first 10 files as example
     count = 0
     for ticker, info in summary.items():
         if count >= 10:
             break
-        
+
         if info['is_valid'] and info['date_range']:
             latest_date = info['date_range'][1]
-            days_behind = (datetime.now().date() - 
+            days_behind = (datetime.now().date() -
                           datetime.strptime(latest_date, '%Y-%m-%d').date()).days
-            
+
             print(f"  {ticker}: {info['date_range'][0]} to {latest_date} "
                   f"({info['row_count']} rows, {days_behind} days behind)")
         else:
             print(f"  {ticker}: INVALID or MISSING DATA")
-        
+
         count += 1
-    
+
     if len(summary) > 10:
         print(f"  ... and {len(summary) - 10} more files")
 
@@ -67,23 +67,23 @@ def example_2_update_priorities():
     print("\n" + "="*60)
     print("EXAMPLE 2: Calculate update priorities")
     print("="*60)
-    
+
     priorities = calculate_update_priority(config.RAW_DATA_DIR, max_age_days=7)
-    
+
     if not priorities:
         print("No files found to analyze.")
         return
-    
+
     # Group by priority
     high_priority = [p for p in priorities if p['priority'] == 'HIGH']
     medium_priority = [p for p in priorities if p['priority'] == 'MEDIUM']
     low_priority = [p for p in priorities if p['priority'] == 'LOW']
-    
+
     print(f"Update Priority Summary:")
     print(f"  HIGH priority (needs immediate update): {len(high_priority)} files")
     print(f"  MEDIUM priority (should update soon): {len(medium_priority)} files")
     print(f"  LOW priority (up to date): {len(low_priority)} files")
-    
+
     # Show top 5 high priority files
     if high_priority:
         print(f"\nTop 5 HIGH priority files:")
@@ -96,22 +96,22 @@ def example_3_validate_specific_file():
     print("\n" + "="*60)
     print("EXAMPLE 3: Validate specific file")
     print("="*60)
-    
+
     # Find any parquet file to validate
     parquet_files = [f for f in os.listdir(config.RAW_DATA_DIR) if f.endswith('.parquet')]
-    
+
     if not parquet_files:
         print("No parquet files found to validate.")
         return
-    
+
     # Use the first file as example
     example_file = os.path.join(config.RAW_DATA_DIR, parquet_files[0])
     ticker = parquet_files[0].replace('_OHLCV.parquet', '')
-    
+
     print(f"Validating file: {ticker}")
-    
+
     validation = validate_parquet_data(example_file)
-    
+
     print(f"Validation Results for {ticker}:")
     print(f"  Is Valid: {validation['is_valid']}")
     print(f"  Row Count: {validation['row_count']:,}")
@@ -119,7 +119,7 @@ def example_3_validate_specific_file():
     print(f"  Date Range: {validation['date_range']}")
     print(f"  Missing Values: {validation['missing_values']}")
     print(f"  Duplicate Dates: {validation['duplicate_dates']}")
-    
+
     if validation['data_quality_issues']:
         print(f"  Data Quality Issues:")
         for issue in validation['data_quality_issues']:
@@ -133,23 +133,23 @@ def example_4_dry_run_incremental_update():
     print("\n" + "="*60)
     print("EXAMPLE 4: Dry run of incremental update")
     print("="*60)
-    
+
     # This is a simulation - we'll check what would be updated without actually updating
     priorities = calculate_update_priority(config.RAW_DATA_DIR, max_age_days=1)
-    
+
     updates_needed = [p for p in priorities if p['priority'] in ['HIGH', 'MEDIUM']]
-    
+
     print(f"Dry Run Results:")
     print(f"  Total files that would be updated: {len(updates_needed)}")
-    
+
     if updates_needed:
         print(f"  Files to update:")
         for item in updates_needed[:10]:  # Show first 10
             print(f"    {item['ticker']}: {item['reason']}")
-        
+
         if len(updates_needed) > 10:
             print(f"    ... and {len(updates_needed) - 10} more files")
-        
+
         # Estimate time
         estimated_time = len(updates_needed) * (config.RATE_LIMIT_DELAY + 2)  # 2 seconds for processing
         print(f"  Estimated update time: {estimated_time:.0f} seconds ({estimated_time/60:.1f} minutes)")
@@ -216,20 +216,20 @@ def main():
     """Run all examples"""
     print("Incremental yfinance Update - Quick Start Examples")
     print("=" * 60)
-    
+
     # Check if directories exist
     if not os.path.exists(config.RAW_DATA_DIR):
         print(f"Raw data directory not found: {config.RAW_DATA_DIR}")
         print("Please create the directory and add some sample parquet files to run the examples.")
         return
-    
+
     # Run examples
     example_1_check_existing_files()
     example_2_update_priorities()
     example_3_validate_specific_file()
     example_4_dry_run_incremental_update()
     example_5_single_ticker_update()
-    
+
     print("\n" + "="*60)
     print("IMPLEMENTATION GUIDE")
     print("="*60)
