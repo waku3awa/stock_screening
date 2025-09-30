@@ -154,40 +154,45 @@ class IncrementalYFinanceLoader:
                 ticker,
                 start=start_date,
                 end=end_date,
-                auto_adjust=False,
+                adjust_splits=False,
+                adjust_divs=False,
                 session=self.session,
                 threads=False
             )
-
-            if df.empty:
-                logger.warning(f"No data returned for {ticker} ({start_date} to {end_date})")
-                return None
-
-            # Process the downloaded data
-            df.reset_index(inplace=True)
-
-            # Handle multi-level columns that sometimes occur with yfinance
-            df.columns = [col[0] if isinstance(col, tuple) else col for col in df.columns]
-
-            # Ensure proper data types
-            df = df.astype({
-                "Open": "float64",
-                "High": "float64",
-                "Low": "float64",
-                "Close": "float64",
-                "Adj Close": "float64",
-                "Volume": "int64"
-            })
-
-            df["Date"] = pd.to_datetime(df["Date"])
-            df["Ticker"] = ticker
-
-            logger.debug(f"Successfully downloaded {len(df)} records for {ticker}")
-            return df
-
         except Exception as e:
             logger.error(f"Error downloading data for {ticker}: {e}")
             return None
+
+        else:
+            if isinstance(df, pd.DataFrame):
+                if df.empty:
+                    logger.warning(f"No data returned for {ticker} ({start_date} to {end_date})")
+                    return None
+
+                # Process the downloaded data
+                df.reset_index(inplace=True)
+
+                # Handle multi-level columns that sometimes occur with yfinance
+                df.columns = [col[0] if isinstance(col, tuple) else col for col in df.columns]
+
+                # Ensure proper data types
+                df = df.astype({
+                    "Open": "float64",
+                    "High": "float64",
+                    "Low": "float64",
+                    "Close": "float64",
+                    "Adj Close": "float64",
+                    "Volume": "int64"
+                })
+
+                df["Date"] = pd.to_datetime(df["Date"])
+                df["Ticker"] = ticker
+
+                logger.debug(f"Successfully downloaded {len(df)} records for {ticker}")
+                return df
+            else:
+                print("yfc.downloadの戻り値は DataFrame ではありません:", type(df))
+
 
     def _merge_and_save_data(self, ticker: str, new_data: pd.DataFrame, industry_code: int) -> bool:
         """
