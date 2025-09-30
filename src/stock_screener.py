@@ -19,7 +19,7 @@ warnings.filterwarnings('ignore')
 # プロジェクトルートをパスに追加
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from utils_parquet import get_ticker_data, get_last_business_day
+from src.utils_parquet import get_ticker_data, get_last_business_day
 from src.indicators import BargainHunterIndicator
 from src.indicators.base import IndicatorResult, Signal
 
@@ -111,6 +111,8 @@ class StockScreener:
                 start_date=start_date,
                 end_date=end_date,
                 auto_download=False  # 既存データのみ使用
+                # auto_download=True,
+                # excel_path="data/data_j_with_financials.xlsx"
             )
 
             if price_data is None or price_data.empty:
