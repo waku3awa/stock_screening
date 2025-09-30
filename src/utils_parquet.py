@@ -8,7 +8,7 @@ in the context of stock data management, specifically for incremental updates.
 import pandas as pd
 import os
 from datetime import datetime, timedelta
-from typing import Optional, List, Dict, Tuple, Union
+from typing import Optional, List, Dict, Tuple, Union, Any
 import logging
 
 logger = logging.getLogger(__name__)
@@ -85,7 +85,7 @@ def get_date_range_from_parquet(file_path: str) -> Optional[Tuple[pd.Timestamp, 
         return None
 
 
-def validate_parquet_data(file_path: str) -> Dict[str, any]:
+def validate_parquet_data(file_path: str) -> Dict[str, Any]:
     """
     Validate a parquet file and return diagnostic information.
 
@@ -553,10 +553,16 @@ def get_ticker_data(
             try:
                 from .incremental_load_yfinance import IncrementalYFinanceLoader
 
+                # Load ticker list from Excel
+                df_excel = pd.read_excel(excel_path)
+                df_excel = df_excel[df_excel["市場・商品区分"] == "プライム（内国株式）"]
+                df_excel["Ticker"] = df_excel["コード"].astype(str).str.zfill(4) + ".T"
+                ticker_list = df_excel[["Ticker", "33業種コード"]].copy()
+
                 # Create loader instance
                 loader = IncrementalYFinanceLoader(
                     input_dir=os.path.dirname(directory),
-                    excel_path=excel_path,
+                    ticker_list=ticker_list,
                     output_dir=os.path.dirname(directory),
                     rate_limit_delay=1.0
                 )
@@ -565,23 +571,10 @@ def get_ticker_data(
                 for ticker in missing_tickers:
                     logger.info(f"Downloading full history for {ticker}")
                     try:
-                        # Get industry code from Excel
-                        df_excel = pd.read_excel(excel_path)
-                        df_excel = df_excel[df_excel["市場・商品区分"] == "プライム（内国株式）"]
-                        df_excel["Ticker"] = df_excel["コード"].astype(str).str.zfill(4) + ".T"
-
-                        ticker_info = df_excel[df_excel["Ticker"] == ticker]
-                        if ticker_info.empty:
-                            logger.error(f"Ticker {ticker} not found in Excel file")
-                            continue
-
-                        industry_code = ticker_info.iloc[0]["33業種コード"]
-
                         # Download data
                         new_data = loader._download_incremental_data(ticker, start_date, end_date)
                         if new_data is not None and not new_data.empty:
                             # Save to file
-                            new_data["IndustryCode"] = int(industry_code)
                             file_path = os.path.join(directory, f"{ticker}_OHLCV.parquet")
                             new_data.to_parquet(file_path, index=False)
                             all_data.append(new_data)

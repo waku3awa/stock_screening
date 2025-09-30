@@ -170,10 +170,17 @@ def example_5_single_ticker_update():
     print("2. Update the config.py file with correct paths")
     print("3. Run the incremental loader")
 
+    # Load ticker list from Excel
+    import pandas as pd
+    df_all = pd.read_excel(config.EXCEL_PATH)
+    df_all = df_all[df_all["市場・商品区分"] == "プライム（内国株式）"]
+    df_all["Ticker"] = df_all["コード"].astype(str).str.zfill(4) + ".T"
+    ticker_list = df_all[["Ticker", "33業種コード"]].copy()
+
     # Example code (commented out to avoid actual execution)
     loader = IncrementalYFinanceLoader(
         input_dir=config.DATA_DIR,
-        excel_path=config.EXCEL_PATH,
+        ticker_list=ticker_list,
         # output_dir=config.OUTPUT_DIR,  # ouput_dirがない場合はinput_dirと同じになる
         rate_limit_delay=config.RATE_LIMIT_DELAY
     )
@@ -198,10 +205,17 @@ def example_6_rebuild_batches_and_master():
     print("EXAMPLE 6: Rebuild_batches_and_master")
     print("="*60)
 
+    # Load ticker list from Excel
+    import pandas as pd
+    df_all = pd.read_excel(config.EXCEL_PATH)
+    df_all = df_all[df_all["市場・商品区分"] == "プライム（内国株式）"]
+    df_all["Ticker"] = df_all["コード"].astype(str).str.zfill(4) + ".T"
+    ticker_list = df_all[["Ticker", "33業種コード"]].copy()
+
     # Example code (commented out to avoid actual execution)
     loader = IncrementalYFinanceLoader(
         input_dir=config.DATA_DIR,
-        excel_path=config.EXCEL_PATH,
+        ticker_list=ticker_list,
         # output_dir=config.OUTPUT_DIR,  # ouput_dirがない場合はinput_dirと同じになる
         rate_limit_delay=config.RATE_LIMIT_DELAY
     )

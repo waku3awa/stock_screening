@@ -69,13 +69,13 @@ class IncrementalYFinanceLoader:
     4. Handle various edge cases and errors
     """
 
-    def __init__(self, input_dir: str, excel_path: str, output_dir: Optional[str] = None, rate_limit_delay: float = 1.0):
+    def __init__(self, input_dir: str, ticker_list: pd.DataFrame, output_dir: Optional[str] = None, rate_limit_delay: float = 1.0):
         """
         Initialize the incremental loader.
 
         Args:
             input_dir: Directory to read existing parquet files from
-            excel_path: Path to Excel file containing ticker list
+            ticker_list: DataFrame containing ticker information with columns ['Ticker', '33業種コード']
             output_dir: Directory to save new/updated parquet files. If None, defaults to input_dir
             rate_limit_delay: Delay between yFinance requests (seconds)
         """
@@ -83,7 +83,7 @@ class IncrementalYFinanceLoader:
         self.output_dir = output_dir if output_dir is not None else input_dir
         self.input_raw_dir = os.path.join(self.input_dir, 'raw')
         self.output_raw_dir = os.path.join(self.output_dir, 'raw')
-        self.excel_path = excel_path
+        self.ticker_list = ticker_list
         self.rate_limit_delay = rate_limit_delay
 
         # Create output directories if they don't exist
@@ -237,25 +237,6 @@ class IncrementalYFinanceLoader:
             logger.error(f"Error merging and saving data for {ticker}: {e}")
             return False
 
-    def _load_ticker_list(self) -> pd.DataFrame:
-        """
-        Load the ticker list from Excel file.
-
-        Returns:
-            DataFrame with ticker information
-        """
-        try:
-            df_all = pd.read_excel(self.excel_path)
-            df_all = df_all[df_all["市場・商品区分"] == "プライム（内国株式）"]
-            df_all["Ticker"] = df_all["コード"].astype(str).str.zfill(4) + ".T"
-            df_list = df_all[["Ticker", "33業種コード"]].copy()
-
-            logger.info(f"Loaded {len(df_list)} tickers from {self.excel_path}")
-            return df_list
-
-        except Exception as e:
-            logger.error(f"Error loading ticker list: {e}")
-            raise
 
 
     def dry_run_incremental_update(self):
@@ -296,7 +277,7 @@ class IncrementalYFinanceLoader:
         Returns:
             Dictionary with update statistics
         """
-        df_list = self._load_ticker_list()
+        df_list = self.ticker_list
 
         # Calculate end date (today)
         end_date = datetime.now().strftime('%Y-%m-%d')
@@ -572,10 +553,18 @@ def main():
     logger.info(f"  Dry run: {args.dry_run}")
 
     try:
+        # Load ticker list from Excel
+        logger.info(f"Loading ticker list from {args.excel_path}...")
+        df_all = pd.read_excel(args.excel_path)
+        df_all = df_all[df_all["市場・商品区分"] == "プライム（内国株式）"]
+        df_all["Ticker"] = df_all["コード"].astype(str).str.zfill(4) + ".T"
+        ticker_list = df_all[["Ticker", "33業種コード"]].copy()
+        logger.info(f"Loaded {len(ticker_list)} tickers from Excel file")
+
         # Create loader instance
         loader = IncrementalYFinanceLoader(
             input_dir=input_dir,
-            excel_path=args.excel_path,
+            ticker_list=ticker_list,
             output_dir=args.output_dir,
             rate_limit_delay=args.delay
         )
@@ -629,10 +618,18 @@ def incremental_yf_update(
     print("Update all ticker")
     print("="*60)
 
+    # Load ticker list from Excel
+    print(f"Loading ticker list from {excel_path}...")
+    df_all = pd.read_excel(excel_path)
+    df_all = df_all[df_all["市場・商品区分"] == "プライム（内国株式）"]
+    df_all["Ticker"] = df_all["コード"].astype(str).str.zfill(4) + ".T"
+    ticker_list = df_all[["Ticker", "33業種コード"]].copy()
+    print(f"Loaded {len(ticker_list)} tickers from Excel file")
+
     # Example code (commented out to avoid actual execution)
     loader = IncrementalYFinanceLoader(
         input_dir=input_dir,
-        excel_path=excel_path,
+        ticker_list=ticker_list,
         output_dir=output_dir,
         rate_limit_delay=1.5
     )

@@ -53,10 +53,17 @@ The solution addresses the following key requirements:
 - **使用方法**:
   ```python
   from incremental_load_yfinance import IncrementalYFinanceLoader
-  
+  import pandas as pd
+
+  # Load ticker list from Excel
+  df_all = pd.read_excel("/path/to/ticker/list.xls")
+  df_all = df_all[df_all["市場・商品区分"] == "プライム（内国株式）"]
+  df_all["Ticker"] = df_all["コード"].astype(str).str.zfill(4) + ".T"
+  ticker_list = df_all[["Ticker", "33業種コード"]].copy()
+
   loader = IncrementalYFinanceLoader(
       output_dir="/path/to/stock/data",
-      excel_path="/path/to/ticker/list.xls"
+      ticker_list=ticker_list
   )
   stats = loader.process_incremental_updates()
   ```
@@ -176,10 +183,17 @@ This approach updates individual ticker files first, then rebuilds batches:
 
 ```python
 from incremental_load_yfinance import IncrementalYFinanceLoader
+import pandas as pd
+
+# Load ticker list from Excel
+df_all = pd.read_excel("/path/to/ticker/list.xls")
+df_all = df_all[df_all["市場・商品区分"] == "プライム（内国株式）"]
+df_all["Ticker"] = df_all["コード"].astype(str).str.zfill(4) + ".T"
+ticker_list = df_all[["Ticker", "33業種コード"]].copy()
 
 loader = IncrementalYFinanceLoader(
     output_dir="/path/to/stock/data",
-    excel_path="/path/to/ticker/list.xls",
+    ticker_list=ticker_list,
     rate_limit_delay=1.0
 )
 
@@ -312,10 +326,17 @@ python incremental_load_yfinance.py
 
 ### Advanced Usage
 ```python
+# Load ticker list from Excel
+import pandas as pd
+df_all = pd.read_excel("/custom/ticker/list.xls")
+df_all = df_all[df_all["市場・商品区分"] == "プライム（内国株式）"]
+df_all["Ticker"] = df_all["コード"].astype(str).str.zfill(4) + ".T"
+ticker_list = df_all[["Ticker", "33業種コード"]].copy()
+
 # Custom incremental update with specific settings
 loader = IncrementalYFinanceLoader(
     output_dir="/custom/path",
-    excel_path="/custom/ticker/list.xls",
+    ticker_list=ticker_list,
     rate_limit_delay=2.0  # Slower for stability
 )
 
@@ -365,8 +386,15 @@ print(f"Found {len(issues)} files with data quality issues")
 
 ### Manual Recovery
 ```python
+# Load ticker list from Excel
+import pandas as pd
+df_all = pd.read_excel(excel_path)
+df_all = df_all[df_all["市場・商品区分"] == "プライム（内国株式）"]
+df_all["Ticker"] = df_all["コード"].astype(str).str.zfill(4) + ".T"
+ticker_list = df_all[["Ticker", "33業種コード"]].copy()
+
 # Manually rebuild from individual files
-loader = IncrementalYFinanceLoader(output_dir, excel_path)
+loader = IncrementalYFinanceLoader(output_dir, ticker_list)
 loader.rebuild_batches_and_master(batch_size=200)
 
 # Validate all files
@@ -389,8 +417,15 @@ assert validate_parquet_data(test_file)['is_valid']
 
 ### Integration Testing
 ```python
+# Load test ticker list from Excel
+import pandas as pd
+df_all = pd.read_excel(test_excel)
+df_all = df_all[df_all["市場・商品区分"] == "プライム（内国株式）"]
+df_all["Ticker"] = df_all["コード"].astype(str).str.zfill(4) + ".T"
+ticker_list = df_all[["Ticker", "33業種コード"]].copy()
+
 # Test full workflow with small dataset
-loader = IncrementalYFinanceLoader(test_dir, test_excel)
+loader = IncrementalYFinanceLoader(test_dir, ticker_list)
 stats = loader.process_incremental_updates(max_lookback_days=7)
 assert stats['updated_tickers'] >= 0
 ```
