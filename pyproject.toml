@@ -1,7 +1,7 @@
 [project]
-name = "feature-cleanup"
+name = "stock-screening"
 version = "0.1.0"
-description = "Add your description here"
+description = "Stock Screening System for Japanese market"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
@@ -15,3 +15,11 @@ dependencies = [
     "xlrd>=2.0.2",
     "yfinance-cache>=0.7.13",
 ]
+
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["src*"]

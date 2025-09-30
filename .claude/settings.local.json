@@ -12,7 +12,10 @@
       "mcp__serena__write_memory",
       "mcp__serena__think_about_collected_information",
       "mcp__serena__insert_before_symbol",
-      "mcp__serena__replace_symbol_body"
+      "mcp__serena__replace_symbol_body",
+      "mcp__gpt-5__o3-search",
+      "Bash(uv pip install:*)",
+      "Bash(python:*)"
     ],
     "deny": []
   }
