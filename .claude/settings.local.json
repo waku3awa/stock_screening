@@ -15,7 +15,9 @@
       "mcp__serena__replace_symbol_body",
       "mcp__gpt-5__o3-search",
       "Bash(uv pip install:*)",
-      "Bash(python:*)"
+      "Bash(python:*)",
+      "Bash(set PYTHONIOENCODING=utf-8)",
+      "Bash(dir:*)"
     ],
     "deny": []
   }

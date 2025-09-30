@@ -21,7 +21,7 @@ from datetime import datetime, timedelta
 from tqdm import tqdm
 import logging
 from typing import Optional
-from utils_parquet import calculate_update_priority
+from .utils_parquet import calculate_update_priority
 from random import uniform
 import warnings
 warnings.filterwarnings('ignore')
