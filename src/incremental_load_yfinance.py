@@ -69,13 +69,12 @@ class IncrementalYFinanceLoader:
     4. Handle various edge cases and errors
     """
 
-    def __init__(self, input_dir: str, ticker_list: pd.DataFrame, output_dir: Optional[str] = None, rate_limit_delay: float = 1.0):
+    def __init__(self, input_dir: str, output_dir: Optional[str] = None, rate_limit_delay: float = 1.0):
         """
         Initialize the incremental loader.
 
         Args:
             input_dir: Directory to read existing parquet files from
-            ticker_list: DataFrame containing ticker information with columns ['Ticker', '33業種コード']
             output_dir: Directory to save new/updated parquet files. If None, defaults to input_dir
             rate_limit_delay: Delay between yFinance requests (seconds)
         """
@@ -83,7 +82,6 @@ class IncrementalYFinanceLoader:
         self.output_dir = output_dir if output_dir is not None else input_dir
         self.input_raw_dir = os.path.join(self.input_dir, 'raw')
         self.output_raw_dir = os.path.join(self.output_dir, 'raw')
-        self.ticker_list = ticker_list
         self.rate_limit_delay = rate_limit_delay
 
         # Create output directories if they don't exist
@@ -267,7 +265,7 @@ class IncrementalYFinanceLoader:
             logger.info("  All files are up to date!")
 
 
-    def process_incremental_updates(self, max_lookback_days: int = 30) -> dict:
+    def process_incremental_updates(self, tickers, max_lookback_days: int = 30) -> dict:
         """
         Process incremental updates for all tickers.
 
@@ -277,7 +275,10 @@ class IncrementalYFinanceLoader:
         Returns:
             Dictionary with update statistics
         """
-        df_list = self.ticker_list
+        if not isinstance(tickers, pd.DataFrame):
+            df_list = pd.DataFrame(tickers, columns=["Ticker",])
+        else:
+            df_list = tickers
 
         # Calculate end date (today)
         end_date = datetime.now().strftime('%Y-%m-%d')
@@ -296,7 +297,10 @@ class IncrementalYFinanceLoader:
 
         for _, row in tqdm(df_list.iterrows(), total=len(df_list), desc="Processing tickers"):
             ticker = row["Ticker"]
-            industry_code = row["33業種コード"]
+            if "33業種コード" in row:
+                industry_code = row["33業種コード"]
+            else:
+                industry_code = 0
 
             try:
                 # Get latest date from existing file
@@ -564,7 +568,6 @@ def main():
         # Create loader instance
         loader = IncrementalYFinanceLoader(
             input_dir=input_dir,
-            ticker_list=ticker_list,
             output_dir=args.output_dir,
             rate_limit_delay=args.delay
         )
@@ -578,7 +581,7 @@ def main():
 
         # Process incremental updates
         logger.info("Starting incremental updates...")
-        stats = loader.process_incremental_updates(max_lookback_days=args.lookback)
+        stats = loader.process_incremental_updates(ticker_list, max_lookback_days=args.lookback)
 
         # Rebuild batches and master file if any updates were made and not disabled
         if not args.no_rebuild and (stats['updated_tickers'] > 0 or stats['new_tickers'] > 0):
@@ -629,7 +632,6 @@ def incremental_yf_update(
     # Example code (commented out to avoid actual execution)
     loader = IncrementalYFinanceLoader(
         input_dir=input_dir,
-        ticker_list=ticker_list,
         output_dir=output_dir,
         rate_limit_delay=1.5
     )
@@ -638,7 +640,7 @@ def incremental_yf_update(
     loader.dry_run_incremental_update()
 
     # This would update all tickers that need updates
-    stats = loader.process_incremental_updates(max_lookback_days=max_lookback_days)
+    stats = loader.process_incremental_updates(ticker_list, max_lookback_days=max_lookback_days)
 
     print(f"Incremental download complete: {stats}")
 

@@ -4,6 +4,7 @@
 data_source:
   # 基本データファイル
   excel_file: "data_j.xls"
+  data_dir: "../stock_data/raw"
 
   # レート制限設定 (yfinance API)
   rate_limit_delay: 1.0  # seconds between requests

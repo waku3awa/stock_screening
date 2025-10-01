@@ -32,7 +32,7 @@ class StockScreener:
     売買シグナルを生成します。
     """
 
-    def __init__(self, config_path: str = "config.yaml"):
+    def __init__(self, config_path: str = "config.yaml", auto_download: bool=False):
         """
         スクリーナーを初期化します。
 
@@ -50,16 +50,14 @@ class StockScreener:
         # インジケーターを初期化
         self.indicator = BargainHunterIndicator(self.indicator_config)
 
-        # データディレクトリを設定（開発環境用）
-        # self.data_dir = Path("../test_stock_data")
-        self.data_dir = Path("../stock_data/raw")
+        # データディレクトリを設定
+        self.data_dir = Path(self.config.get('data_source', {}).get('data_dir', "./stock_data"))
         if not self.data_dir.exists():
-            # 本番環境の場合
-            self.data_dir = Path("../stock_data")
-            if not self.data_dir.exists():
-                raise FileNotFoundError(f"データディレクトリが見つかりません: {self.data_dir}")
+            raise FileNotFoundError(f"データディレクトリが見つかりません: {self.data_dir}")
 
-    def load_ticker_list(self, excel_path: str = "data/data_j_with_financials.xlsx") -> pd.DataFrame:
+        self.auto_download = auto_download
+
+    def load_ticker_list(self, excel_path: str) -> pd.DataFrame:
         """
         Excelファイルからティッカーリストを読み込みます。
 
@@ -70,7 +68,11 @@ class StockScreener:
             pd.DataFrame: ティッカー情報
         """
         try:
-            df = pd.read_excel(excel_path)
+            if excel_path.split(".")[-1] == "csv":
+                df = pd.read_csv(excel_path)
+            else:
+                df = pd.read_excel(excel_path)
+
             # 必要なカラムのみを抽出
             if 'コード' in df.columns and '銘柄名' in df.columns:
                 ticker_df = df[['コード', '銘柄名']].copy()
@@ -110,9 +112,7 @@ class StockScreener:
                 directory=str(self.data_dir),
                 start_date=start_date,
                 end_date=end_date,
-                auto_download=False  # 既存データのみ使用
-                # auto_download=True,
-                # excel_path="data/data_j_with_financials.xlsx"
+                auto_download=self.auto_download,
             )
 
             if price_data is None or price_data.empty:
@@ -289,6 +289,10 @@ def main():
     """メイン処理"""
     # コマンドライン引数をパース
     parser = argparse.ArgumentParser(description='株価スクリーニングシステム')
+    parser.add_argument('--ticker_path', default="data/data_j_with_financials.xlsx")
+    parser.add_argument('--ticker', nargs="*", type=str, default=[])
+    parser.add_argument('--auto-download', action='store_true',
+                      help='株価情報を自動ダウンロードする')
     parser.add_argument('--debug', action='store_true',
                       help='デバッグモード（最初の10銘柄のみ処理）')
     parser.add_argument('--limit', type=int, default=None,
@@ -297,11 +301,19 @@ def main():
 
     try:
         # スクリーナーを初期化
-        screener = StockScreener()
+        screener = StockScreener(auto_download=args.auto_download)
 
         # ティッカーリストを読み込み
         print("ティッカーリストを読み込み中...")
-        ticker_df = screener.load_ticker_list()
+        if args.ticker:
+            print(f"対象のティッカー: {" ".join(args.ticker)}")
+            data = []
+            for i, t in enumerate(args.ticker):
+                data.append([t, str(i)])
+            ticker_df = pd.DataFrame(data, columns=["ticker", "company_name"])
+            print(ticker_df)
+        else:
+            ticker_df = screener.load_ticker_list(args.ticker_path)
 
         # デバッグモードまたは上限指定の場合は銘柄数を制限
         original_count = len(ticker_df)

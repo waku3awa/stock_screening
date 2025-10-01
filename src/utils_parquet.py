@@ -10,6 +10,8 @@ import os
 from datetime import datetime, timedelta
 from typing import Optional, List, Dict, Tuple, Union, Any
 import logging
+import time
+from random import uniform
 
 logger = logging.getLogger(__name__)
 
@@ -344,23 +346,23 @@ def scan_all_parquet_files(directory: str) -> Dict[str, Dict]:
 def get_last_business_day(date: Optional[str] = None) -> str:
     """
     Get the last business day (Monday-Friday) on or before the specified date.
-    
+
     This function is crucial for stock market data processing as markets are closed
     on weekends and some holidays. It ensures we always request data for a day
     when markets were potentially open.
-    
+
     Args:
         date: Date string in 'YYYY-MM-DD' format. If None, uses today's date.
-        
+
     Returns:
         String representing the last business day in 'YYYY-MM-DD' format
-        
+
     Example:
         >>> # If today is Sunday 2024-01-07
         >>> get_last_business_day()
         '2024-01-05'  # Returns Friday
-        
-        >>> # If today is Wednesday 2024-01-03  
+
+        >>> # If today is Wednesday 2024-01-03
         >>> get_last_business_day()
         '2024-01-03'  # Returns same day (Wednesday)
     """
@@ -368,41 +370,41 @@ def get_last_business_day(date: Optional[str] = None) -> str:
         target_date = datetime.now()
     else:
         target_date = datetime.strptime(date, '%Y-%m-%d')
-    
+
     # Find the last business day (Monday=0, Sunday=6)
     while target_date.weekday() > 4:  # Saturday=5, Sunday=6
         target_date -= timedelta(days=1)
-    
+
     return target_date.strftime('%Y-%m-%d')
 
 
 def adjust_date_range_for_market(start_date: str, end_date: str) -> Tuple[str, str]:
     """
     Adjust date range to ensure both dates fall on potential trading days.
-    
+
     This function adjusts both start and end dates to business days to avoid
     requesting data for weekends when markets are closed.
-    
+
     Args:
         start_date: Start date in 'YYYY-MM-DD' format
         end_date: End date in 'YYYY-MM-DD' format
-        
+
     Returns:
         Tuple of (adjusted_start_date, adjusted_end_date) in 'YYYY-MM-DD' format
-        
+
     Example:
         >>> adjust_date_range_for_market('2024-01-06', '2024-01-07')  # Sat-Sun
         ('2024-01-05', '2024-01-05')  # Both adjusted to Friday
     """
     # Adjust end date to last business day
     adjusted_end = get_last_business_day(end_date)
-    
+
     # For start date, if it's a weekend, move to next business day
     start_dt = datetime.strptime(start_date, '%Y-%m-%d')
     while start_dt.weekday() > 4:  # Saturday=5, Sunday=6
         start_dt += timedelta(days=1)
     adjusted_start = start_dt.strftime('%Y-%m-%d')
-    
+
     return adjusted_start, adjusted_end
 
 def get_ticker_data(
@@ -411,7 +413,6 @@ def get_ticker_data(
     start_date: Optional[str] = None,
     end_date: Optional[str] = None,
     auto_download: bool = False,
-    excel_path: Optional[str] = None
 ) -> pd.DataFrame:
     """
     Get stock data for specified tickers from parquet files.
@@ -426,7 +427,6 @@ def get_ticker_data(
         start_date: Start date in 'YYYY-MM-DD' format. If None, gets all available data
         end_date: End date in 'YYYY-MM-DD' format. If None, uses today's date
         auto_download: If True, automatically downloads missing data. If False, raises error for missing data
-        excel_path: Path to Excel file with ticker list (required if auto_download=True)
 
     Returns:
         DataFrame containing combined stock data for all requested tickers
@@ -441,8 +441,7 @@ def get_ticker_data(
 
         >>> # Get multiple tickers with auto-download
         >>> df = get_ticker_data(['7203.T', '6758.T'], './stock_data/raw',
-        ...                     start_date='2024-01-01', auto_download=True,
-        ...                     excel_path='./data/data_j.xlsx')
+        ...                     start_date='2024-01-01', auto_download=True)
     """
     # Convert single ticker to list for uniform processing
     if isinstance(tickers, str):
@@ -453,7 +452,7 @@ def get_ticker_data(
         end_date = get_last_business_day()  # Use last business day instead of today
     if start_date is None:
         start_date = '2010-01-01'  # Default historical start
-    
+
     # Adjust date range for market hours to avoid weekend/holiday issues
     start_date, end_date = adjust_date_range_for_market(start_date, end_date)
     logger.info(f"Adjusted date range for market hours: {start_date} to {end_date}")
@@ -546,25 +545,14 @@ def get_ticker_data(
         if auto_download:
             logger.info("Auto-download enabled. Attempting to download missing data...")
 
-            if not excel_path:
-                raise ValueError("excel_path is required when auto_download=True")
-
             # Import incremental loader
             try:
                 from .incremental_load_yfinance import IncrementalYFinanceLoader
 
-                # Load ticker list from Excel
-                df_excel = pd.read_excel(excel_path)
-                df_excel = df_excel[df_excel["市場・商品区分"] == "プライム（内国株式）"]
-                df_excel["Ticker"] = df_excel["コード"].astype(str).str.zfill(4) + ".T"
-                ticker_list = df_excel[["Ticker", "33業種コード"]].copy()
-
                 # Create loader instance
                 loader = IncrementalYFinanceLoader(
                     input_dir=os.path.dirname(directory),
-                    ticker_list=ticker_list,
                     output_dir=os.path.dirname(directory),
-                    rate_limit_delay=1.0
                 )
 
                 # Download missing tickers
@@ -573,12 +561,13 @@ def get_ticker_data(
                     try:
                         # Download data
                         new_data = loader._download_incremental_data(ticker, start_date, end_date)
+                        time.sleep(1.5 + uniform(0, 0.5))
                         if new_data is not None and not new_data.empty:
                             # Save to file
                             file_path = os.path.join(directory, f"{ticker}_OHLCV.parquet")
                             new_data.to_parquet(file_path, index=False)
                             all_data.append(new_data)
-                            logger.info(f"Successfully downloaded and saved {len(new_data)} records for {ticker}")
+                            logger.info(f"Successfully downloaded and saved {len(new_data)} records for {ticker} {file_path}")
                     except Exception as e:
                         logger.error(f"Failed to download data for {ticker}: {e}")
 
@@ -591,6 +580,7 @@ def get_ticker_data(
 
                         try:
                             new_data = loader._download_incremental_data(ticker, update_start, update_end)
+                            time.sleep(1.5 + uniform(0, 0.5))
                             if new_data is not None and not new_data.empty:
                                 # Append to existing file
                                 file_path = os.path.join(directory, f"{ticker}_OHLCV.parquet")
@@ -604,7 +594,7 @@ def get_ticker_data(
                                     # Replace old data with updated data
                                     all_data = [d for d in all_data if d['Ticker'].iloc[0] != ticker]
                                     all_data.append(filtered_df)
-                                    logger.info(f"Successfully updated {ticker} with {len(new_data)} new records")
+                                    logger.info(f"Successfully updated {ticker} with {len(new_data)} new records {file_path}")
                         except Exception as e:
                             logger.error(f"Failed to update data for {ticker}: {e}")
 
@@ -639,7 +629,6 @@ def get_recent_ticker_data(
     directory: str,
     days: int = 365,
     auto_download: bool = False,
-    excel_path: Optional[str] = None
 ) -> pd.DataFrame:
     """
     Get recent stock data for specified tickers (convenience function).
@@ -652,7 +641,6 @@ def get_recent_ticker_data(
         directory: Directory containing parquet files
         days: Number of days of historical data to retrieve (default: 365)
         auto_download: If True, automatically downloads missing data
-        excel_path: Path to Excel file with ticker list (required if auto_download=True)
 
     Returns:
         DataFrame containing recent stock data
@@ -673,7 +661,6 @@ def get_recent_ticker_data(
         start_date=start_date,
         end_date=end_date,
         auto_download=auto_download,
-        excel_path=excel_path
     )
 
 
@@ -768,7 +755,6 @@ if __name__ == "__main__":
     print("\n# Get multiple tickers with auto-download if missing")
     print("df = get_ticker_data(['7203.T', '6758.T'], './stock_data/raw',")
     print("                    start_date='2024-01-01', auto_download=True,")
-    print("                    excel_path='./data/data_j.xlsx')")
 
     # Example 4c: Get recent data (last year)
     print("\n# Get last year of data for Toyota")
