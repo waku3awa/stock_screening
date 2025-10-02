@@ -17,7 +17,8 @@
       "Bash(uv pip install:*)",
       "Bash(python:*)",
       "Bash(set PYTHONIOENCODING=utf-8)",
-      "Bash(dir:*)"
+      "Bash(dir:*)",
+      "Bash(gemini:*)"
     ],
     "deny": []
   }
