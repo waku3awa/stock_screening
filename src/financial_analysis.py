@@ -37,10 +37,6 @@ def parse_args(argv=None):
 
     args = parser.parse_args(argv)
 
-    # 入力ファイルの検証
-    if not args.input_path.is_file():
-        parser.error(f'入力ファイルが見つかりません: {args.input_path}')
-
     return args
 
 
@@ -57,7 +53,10 @@ def main(argv=None):
     timestamp = time.strftime("%Y%m%d_%H%M%S")
     output_path = output_dir / f'data_j_financial_{timestamp}.csv'
 
-    get_latest_month_end_tse_listing(input_path)
+    # 入力ファイルの検証
+    if not input_path.is_file():
+        print(f'入力ファイルが見つかりません. ダウンロードします: {args.input_path}')
+        get_latest_month_end_tse_listing(str(input_path))
     df_tickers = pd.read_excel(input_path)
 
     # プライム市場の銘柄のみ抽出
