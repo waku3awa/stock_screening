@@ -297,6 +297,9 @@ def main():
                       help='デバッグモード（最初の10銘柄のみ処理）')
     parser.add_argument('--limit', type=int, default=None,
                       help='処理する銘柄数の上限を指定')
+    parser.add_argument('-o', '--output', type=lambda s: Path(s).expanduser(),
+                      default=Path.cwd(), metavar='DIR',
+                      help='結果CSVを保存するディレクトリパス（存在しない場合は自動作成、デフォルト: カレントディレクトリ）')
     args = parser.parse_args()
 
     try:
@@ -332,10 +335,14 @@ def main():
         # 結果を表示
         screener.display_results(results)
 
+        # 出力ディレクトリを作成
+        output_dir = args.output
+        output_dir.mkdir(parents=True, exist_ok=True)
+
         # CSVに保存
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        output_file = f"screening_results_{timestamp}.csv"
-        screener.save_results_to_csv(results, output_file)
+        output_file = output_dir / f"screening_results_{timestamp}.csv"
+        screener.save_results_to_csv(results, str(output_file))
 
     except Exception as e:
         print(f"エラーが発生しました: {e}")
