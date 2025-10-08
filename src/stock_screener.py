@@ -253,7 +253,8 @@ class StockScreener:
     def save_results_to_csv(
         self,
         results: List[IndicatorResult],
-        output_path: str = "screening_results.csv"
+        output_path: str = "screening_results.csv",
+        save_full: bool = False
     ) -> None:
         """
         結果をCSVファイルに保存します。
@@ -261,10 +262,25 @@ class StockScreener:
         Args:
             results: スクリーニング結果
             output_path: 出力ファイルパス
+            save_full: Trueの場合、全銘柄を保存。Falseの場合、買い・売りシグナルのみ保存
         """
+        # save_fullフラグに応じて保存対象をフィルタリング
+        target_results = results
+        if not save_full:
+            target_results = [
+                r for r in results if r.signal in [Signal.BUY, Signal.SELL]
+            ]
+            print(f"\nシグナルあり（{len(target_results)}件）のみCSVに保存します。")
+        else:
+            print(f"\n全銘柄（{len(results)}件）をCSVに保存します。")
+
+        if not target_results:
+            print("保存対象のデータがありません。")
+            return
+
         # DataFrameに変換
         data = []
-        for result in results:
+        for result in target_results:
             info = result.additional_info
             data.append({
                 'ティッカー': result.ticker,
@@ -300,6 +316,8 @@ def main():
     parser.add_argument('-o', '--output', type=lambda s: Path(s).expanduser(),
                       default=Path.cwd(), metavar='DIR',
                       help='結果CSVを保存するディレクトリパス（存在しない場合は自動作成、デフォルト: カレントディレクトリ）')
+    parser.add_argument('--save-full', action='store_true',
+                      help='全銘柄（シグナルなし含む）をCSVに保存する（デフォルト: 買い・売りシグナルのみ保存）')
     args = parser.parse_args()
 
     try:
@@ -342,7 +360,7 @@ def main():
         # CSVに保存
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         output_file = output_dir / f"screening_results_{timestamp}.csv"
-        screener.save_results_to_csv(results, str(output_file))
+        screener.save_results_to_csv(results, str(output_file), save_full=args.save_full)
 
     except Exception as e:
         print(f"エラーが発生しました: {e}")
