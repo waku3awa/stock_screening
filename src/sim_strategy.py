@@ -23,13 +23,13 @@ def main():
         epilog="""
 Examples:
   # Basic usage with Toyota stock
-  python src/bargain_strategy.py --ticker 7203.T
+  python src/sim_strategy.py --ticker 7203.T
 
   # Custom parameters
-  python src/bargain_strategy.py --ticker 7203.T --start-year 2023 --drop 5.0 --rise 7.0
+  python src/sim_strategy.py --ticker 7203.T --start-year 2023 --drop 5.0 --rise 7.0
 
   # Specify output directory
-  python src/bargain_strategy.py --ticker 7203.T --output results/
+  python src/sim_strategy.py --ticker 7203.T --output results/
         """
     )
 
