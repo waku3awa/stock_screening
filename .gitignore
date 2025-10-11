@@ -1,5 +1,6 @@
 .venv
 test_stock_data
+test_output/*
 src/__pycache__
 backtest_results
 .serena/cache/*
