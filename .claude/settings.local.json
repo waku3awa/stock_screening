@@ -18,7 +18,8 @@
       "Bash(python:*)",
       "Bash(set PYTHONIOENCODING=utf-8)",
       "Bash(dir:*)",
-      "Bash(gemini:*)"
+      "Bash(gemini:*)",
+      "Bash(uv run:*)"
     ],
     "deny": []
   }
