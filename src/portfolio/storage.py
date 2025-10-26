@@ -15,8 +15,8 @@ class PortfolioStorage:
     """Handles CSV file operations for portfolio data"""
 
     FIELDNAMES = [
-        'trade_id', 'trade_date', 'ticker_local', 'ticker_yf', 'stock_name',
-        'side', 'quantity', 'price', 'commission', 'market', 'currency', 'notes'
+        'trade_id', 'trade_date', 'コード', 'ticker_yf', '銘柄名',
+        'シグナル', 'quantity', 'price', 'commission', 'market', 'currency', 'notes'
     ]
 
     def __init__(self, data_dir: Path):

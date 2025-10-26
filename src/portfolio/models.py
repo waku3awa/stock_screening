@@ -54,10 +54,10 @@ class Trade:
         return {
             'trade_id': self.trade_id,
             'trade_date': self.trade_date.strftime("%Y-%m-%d"),
-            'ticker_local': self.ticker_local,
+            'コード': self.ticker_local,
             'ticker_yf': self.ticker_yf,
-            'stock_name': self.stock_name,
-            'side': self.side,
+            '銘柄名': self.stock_name,
+            'シグナル': self.side,
             'quantity': self.quantity,
             'price': str(self.price),
             'commission': str(self.commission),
@@ -68,14 +68,14 @@ class Trade:
 
     @classmethod
     def from_dict(cls, data: dict) -> 'Trade':
-        """Create Trade from dictionary"""
+        """Create Trade from dictionary (supports both old and new column names)"""
         return cls(
             trade_id=data['trade_id'],
             trade_date=datetime.strptime(data['trade_date'], "%Y-%m-%d").date(),
-            ticker_local=data['ticker_local'],
+            ticker_local=data.get('コード', data.get('ticker_local', '')),
             ticker_yf=data['ticker_yf'],
-            stock_name=data['stock_name'],
-            side=data['side'],
+            stock_name=data.get('銘柄名', data.get('stock_name', '')),
+            side=data.get('シグナル', data.get('side', 'BUY')),
             quantity=int(data['quantity']),
             price=Decimal(data['price']),
             commission=Decimal(data['commission']),
